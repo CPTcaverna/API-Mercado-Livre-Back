@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { MercadoLibreOAuthService } from './mercadolibre-oauth.service';
+import { MercadoLibreTokenService } from './mercadolibre-token.service';
 
 @Module({
   imports: [
@@ -15,6 +16,12 @@ import { MercadoLibreOAuthService } from './mercadolibre-oauth.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MercadoLibreOAuthService, JwtStrategy],
+  providers: [
+    AuthService,
+    MercadoLibreOAuthService,
+    MercadoLibreTokenService,
+    JwtStrategy,
+  ],
+  exports: [MercadoLibreTokenService],
 })
 export class AuthModule {}

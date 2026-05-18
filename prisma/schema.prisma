@@ -13,14 +13,42 @@ model User {
   id       String @id @default(uuid()) @map("_id")
   name     String
   email    String @unique
-  password String /// hash bcrypt — nunca exponha em endpoints
+  password String 
 
-  /// Preenchidos após OAuth Mercado Livre (fluxo código → tokens)
-  mlAccessToken  String?
-  mlRefreshToken String?
+  mlAccessToken     String?
+  mlRefreshToken    String?
+  
+  mlTokenExpiresAt  DateTime?
+  
+  mlUserId          String?
+
+  items Item[]
+
+  @@index([mlUserId])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model Item {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  mlItemId     String   @unique
+  title        String
+  price        Float
+  availableQty Int
+  status       String
+  active       Boolean  @default(true) 
+  thumbnail    String?
+  categoryId   String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("items")
 }

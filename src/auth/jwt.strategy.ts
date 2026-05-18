@@ -15,10 +15,14 @@ function jwtFromCookieOrBearer(req: Request): string | null {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor() {
+    const secret = process.env.JWT_SECRET?.trim();
+    if (!secret) {
+      throw new Error('JWT_SECRET não configurado no ambiente.');
+    }
     super({
       jwtFromRequest: jwtFromCookieOrBearer,
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET,
+      secretOrKey: secret,
     });
   }
 

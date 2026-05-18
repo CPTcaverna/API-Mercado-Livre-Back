@@ -8,9 +8,13 @@ const DEFAULT_AUTH_URL =
   'https://auth.mercadolivre.com.br/authorization';
 const TOKEN_URL = 'https://api.mercadolibre.com/oauth/token';
 
-export interface MercadoLibreTokens {
+const DEFAULT_EXPIRES_IN_SEC = 6 * 60 * 60;
+
+export interface MercadoLibreTokenBundle {
   access_token: string;
   refresh_token: string;
+  expires_in: number;
+  expires_at: Date;
 }
 
 @Injectable()
@@ -61,7 +65,7 @@ export class MercadoLibreOAuthService {
     return `${base}${sep}${params.toString()}`;
   }
 
-  async exchangeCodeForTokens(code: string): Promise<MercadoLibreTokens> {
+  async exchangeCodeForTokens(code: string): Promise<MercadoLibreTokenBundle> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.clientId,
@@ -69,7 +73,58 @@ export class MercadoLibreOAuthService {
       code: code.trim(),
       redirect_uri: this.redirectUri,
     });
+    return this.requestTokens(body, 'trocar o código por tokens');
+  }
 
+  async getMe(accessToken: string): Promise<{ id: number }> {
+    const res = await fetch('https://api.mercadolibre.com/users/me', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${accessToken.trim()}`,
+        Accept: 'application/json',
+      },
+    });
+
+    const raw = await res.text();
+    let data: unknown;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new InternalServerErrorException(
+        'Resposta inválida ao buscar dados do usuário.',
+      );
+    }
+
+    if (!res.ok) {
+      throw new BadRequestException(
+        `Falha ao buscar dados do usuário (${res.status}).`,
+      );
+    }
+
+    const parsed = data as Partial<{ id: number }>;
+    if (typeof parsed.id !== 'number') {
+      throw new InternalServerErrorException(
+        'Resposta do Mercado Livre sem id de usuário.',
+      );
+    }
+
+    return { id: parsed.id };
+  }
+
+  async refreshTokens(refreshToken: string): Promise<MercadoLibreTokenBundle> {
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      refresh_token: refreshToken.trim(),
+    });
+    return this.requestTokens(body, 'renovar o access token');
+  }
+
+  private async requestTokens(
+    body: URLSearchParams,
+    actionLabel: string,
+  ): Promise<MercadoLibreTokenBundle> {
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -85,7 +140,7 @@ export class MercadoLibreOAuthService {
       data = raw ? JSON.parse(raw) : {};
     } catch {
       throw new InternalServerErrorException(
-        'Resposta inválida ao trocar o código por tokens.',
+        `Resposta inválida ao ${actionLabel}.`,
       );
     }
 
@@ -101,20 +156,36 @@ export class MercadoLibreOAuthService {
               'error' in data &&
               typeof (data as { error: unknown }).error === 'string'
             ? (data as { error: string }).error
-            : `Falha na troca de token (${res.status})`;
+            : `Falha ao ${actionLabel} (${res.status})`;
       throw new BadRequestException(message);
     }
 
-    const parsed = data as Partial<MercadoLibreTokens>;
+    return this.parseTokenResponse(data);
+  }
+
+  private parseTokenResponse(data: unknown): MercadoLibreTokenBundle {
+    const parsed = data as Partial<{
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    }>;
+
     if (!parsed.access_token || !parsed.refresh_token) {
       throw new InternalServerErrorException(
         'Resposta do Mercado Livre sem access_token ou refresh_token.',
       );
     }
 
+    const expires_in =
+      typeof parsed.expires_in === 'number' && parsed.expires_in > 0
+        ? parsed.expires_in
+        : DEFAULT_EXPIRES_IN_SEC;
+
     return {
       access_token: parsed.access_token,
       refresh_token: parsed.refresh_token,
+      expires_in,
+      expires_at: new Date(Date.now() + expires_in * 1000),
     };
   }
 }

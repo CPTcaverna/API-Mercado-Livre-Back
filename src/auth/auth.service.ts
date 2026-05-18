@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoLibreOAuthService } from './mercadolibre-oauth.service';
+import { MercadoLibreTokenService } from './mercadolibre-token.service';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
 
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mercadoLibreOAuth: MercadoLibreOAuthService,
+    private readonly mercadoLibreToken: MercadoLibreTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -114,12 +116,11 @@ export class AuthService {
   async completeMercadoLibreOAuth(code: string, state: string) {
     const userId = this.verifyMercadoLibreOAuthState(state);
     const tokens = await this.mercadoLibreOAuth.exchangeCodeForTokens(code);
+    await this.mercadoLibreToken.persistTokensForUser(userId, tokens);
+    const me = await this.mercadoLibreOAuth.getMe(tokens.access_token);
     await this.prisma.user.update({
       where: { id: userId },
-      data: {
-        mlAccessToken: tokens.access_token,
-        mlRefreshToken: tokens.refresh_token,
-      },
+      data: { mlUserId: String(me.id) },
     });
     return { connected: true };
   }
