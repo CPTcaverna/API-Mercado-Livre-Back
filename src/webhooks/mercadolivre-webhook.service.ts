@@ -38,20 +38,25 @@ export class MercadoLivreWebhookService {
 
     if (!this.isTrustedApplication(notification.application_id)) {
       this.logger.warn(
-        `Notificação ignorada: application_id ${String(notification.application_id)}`,
+        `Notificação ignorada: application_id ${String(notification.application_id)} (confira ML_CLIENT_ID no servidor).`,
       );
       return;
     }
 
+    this.logger.log(
+      `Notificação ML: topic=${topic} user_id=${String(mlUserId)} resource=${resource}`,
+    );
+
     switch (topic) {
       case 'items':
+      case 'items_prices':
         await this.handleItemsTopic(String(mlUserId), resource);
         break;
       case 'orders_v2':
         await this.handleOrdersTopic(String(mlUserId), resource);
         break;
       default:
-        this.logger.debug(`Tópico não tratado: ${topic}`);
+        this.logger.warn(`Tópico não tratado: ${topic}`);
     }
   }
 
