@@ -1,5 +1,3 @@
-// MongoDB — aplicar no cluster: npm run prisma:push
-
 generator client {
   provider = "prisma-client-js"
 }

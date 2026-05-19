@@ -58,6 +58,13 @@ export type MercadoLivreUpdateItemPayload = Partial<{
   status: string;
 }>;
 
+export interface MercadoLivreDomainDiscoveryResult {
+  domain_id: string;
+  domain_name: string;
+  category_id: string;
+  category_name: string;
+}
+
 export interface MercadoLivreCategoryAttribute {
   id: string;
   name: string;
@@ -162,6 +169,19 @@ export class MercadoLivreApiService {
       accessToken,
       { method: 'GET' },
       'buscar o pedido',
+    );
+  }
+
+  async domainDiscoverySearch(
+    siteId: string,
+    query: string,
+  ): Promise<MercadoLivreDomainDiscoveryResult[]> {
+    const params = new URLSearchParams({ q: query.trim() });
+    return this.requestJson<MercadoLivreDomainDiscoveryResult[]>(
+      `/sites/${encodeURIComponent(siteId)}/domain_discovery/search?${params.toString()}`,
+      null,
+      { method: 'GET' },
+      'prever categoria pelo título',
     );
   }
 

@@ -18,10 +18,6 @@ export function mercadoLivreFetchInit(init?: RequestInit): RequestInit {
   };
 }
 
-/**
- * Dispara fetch ao Mercado Livre com timeout e trata falhas de rede.
- * Não interpreta o corpo — use {@link mercadoLivreRequestJson} na maioria dos casos.
- */
 export async function mercadoLivreFetch(
   url: string,
   init: RequestInit | undefined,
@@ -37,9 +33,6 @@ export async function mercadoLivreFetch(
   }
 }
 
-/**
- * Fetch + leitura segura do corpo + validação de `res.ok` antes de interpretar JSON.
- */
 export async function mercadoLivreRequestJson<T>(
   url: string,
   init: RequestInit | undefined,
@@ -59,7 +52,6 @@ export async function mercadoLivreRequestJson<T>(
   return parseMercadoLivreJson(raw, actionLabel) as T;
 }
 
-/** Lê o corpo da resposta; falhas de leitura viram erro de gateway. */
 export async function readMercadoLivreResponseText(
   res: Response,
   actionLabel: string,
@@ -71,7 +63,6 @@ export async function readMercadoLivreResponseText(
   }
 }
 
-/** Corpo de erro: vazio ou JSON inválido não quebram o fluxo. */
 export function parseMercadoLivreJsonLenient(raw: string): unknown {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -84,7 +75,6 @@ export function parseMercadoLivreJsonLenient(raw: string): unknown {
   }
 }
 
-/** Corpo de sucesso: exige JSON válido. */
 export function parseMercadoLivreJson(
   raw: string,
   actionLabel: string,

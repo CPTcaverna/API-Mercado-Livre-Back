@@ -23,7 +23,6 @@ type AuthedUser = { userId: string; email?: string };
 export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
-  /** Importa anúncios existentes no ML para o Mongo (sem duplicar por mlItemId). */
   @Post('import')
   importFromMercadoLivre(@Req() req: Request & { user: AuthedUser }) {
     return this.itemsService.importAllFromMercadoLivre(req.user.userId);
@@ -35,6 +34,11 @@ export class ItemsController {
     @Body() createItemDto: CreateItemDto,
   ) {
     return this.itemsService.create(req.user.userId, createItemDto);
+  }
+
+  @Get('categories/predict')
+  predictCategory(@Query('q') q?: string, @Query('site') site?: string) {
+    return this.itemsService.predictCategoryFromTitle(q ?? '', site);
   }
 
   @Get('categories/:categoryId/attributes')

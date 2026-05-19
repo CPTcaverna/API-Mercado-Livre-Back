@@ -1,6 +1,5 @@
 import type { CookieOptions } from 'express';
 
-/** Opções do cookie JWT — devem ser as mesmas em set e clear. */
 function useCrossSiteCookie(): boolean {
   if (process.env.COOKIE_CROSS_SITE === 'true') return true;
   return process.env.NODE_ENV === 'production';
@@ -26,7 +25,6 @@ export function jwtCookieOptions(): CookieOptions {
   };
 }
 
-/** Mesmos atributos do set, sem maxAge (recomendado para clearCookie). */
 export function jwtCookieClearOptions(): CookieOptions {
   return cookieBaseOptions();
 }

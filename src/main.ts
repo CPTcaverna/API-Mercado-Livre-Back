@@ -7,7 +7,6 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Necessário atrás de proxy (Render, Railway, etc.) para cookies Secure.
   app.set('trust proxy', 1);
 
   app.use(cookieParser());
@@ -23,7 +22,6 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      // ML envia _id, sent, attempts, etc. no webhook — não pode retornar 400 por campo extra.
       forbidNonWhitelisted: false,
       transform: true,
     }),

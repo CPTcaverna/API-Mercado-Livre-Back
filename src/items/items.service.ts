@@ -21,6 +21,37 @@ export class ItemsService {
     private readonly mlApi: MercadoLivreApiService,
   ) {}
 
+  async predictCategoryFromTitle(query: string, siteId = 'MLB') {
+    const term = query.trim();
+    if (term.length < 3) {
+      throw new BadRequestException(
+        'Informe um título com pelo menos 3 caracteres para prever a categoria.',
+      );
+    }
+
+    const normalizedSite = siteId.trim().toUpperCase();
+    if (!/^ML[A-Z]$/.test(normalizedSite)) {
+      throw new BadRequestException('siteId inválido (ex.: MLB).');
+    }
+
+    const results = await this.mlApi.domainDiscoverySearch(normalizedSite, term);
+    const suggestions = results
+      .filter((row) => row.category_id?.trim() && row.category_name?.trim())
+      .map((row) => ({
+        category_id: row.category_id.trim().toUpperCase(),
+        category_name: row.category_name.trim(),
+        domain_id: row.domain_id?.trim() ?? null,
+        domain_name: row.domain_name?.trim() ?? null,
+      }));
+
+    return {
+      query: term,
+      site_id: normalizedSite,
+      suggestions,
+      predicted: suggestions[0] ?? null,
+    };
+  }
+
   async create(userId: string, dto: CreateItemDto) {
     const accessToken = await this.mlToken.getValidMlAccessToken(userId);
 
@@ -105,10 +136,6 @@ export class ItemsService {
     return { item: updated };
   }
 
-  /**
-   * Exclui do painel somente após encerrar no Mercado Livre.
-   * Só anúncios inativos no app.
-   */
   async removeInactive(userId: string, id: string) {
     const item = await this.findOwnedItem(userId, id);
     if (item.active) {
@@ -138,7 +165,6 @@ export class ItemsService {
         status: 'active',
       });
     } else {
-      // Inativar usa status closed — republicar exige POST /relist com preço, estoque e tipo.
       const snapshot = await this.mlApi.getItem(accessToken, item.mlItemId);
       mlItem = await this.mlApi.relistItem(accessToken, item.mlItemId, {
         price: item.price,
@@ -240,9 +266,6 @@ export class ItemsService {
     return { item };
   }
 
-  /**
-   * Importa todos os anúncios do vendedor no ML (upsert por mlItemId — sem duplicar).
-   */
   async importAllFromMercadoLivre(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -372,7 +395,6 @@ export class ItemsService {
     }
   }
 
-  /** Encerra no ML; só segue se o status final for closed. */
   private async ensureItemClosedOnMl(
     accessToken: string,
     mlItemId: string,

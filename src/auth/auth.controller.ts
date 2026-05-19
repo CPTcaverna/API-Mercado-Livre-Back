@@ -49,14 +49,12 @@ export class AuthController {
     return { ok: true };
   }
 
-  /** Retorna URL de autorização OAuth (redirect no front: ML_REDIRECT_URI). */
   @UseGuards(AuthGuard('jwt'))
   @Get('ml/connect')
   connectMercadoLivre(@Req() req: Request & { user: AuthedUser }) {
     return this.authService.authorizationUrlMercadoLivre(req.user.userId);
   }
 
-  /** Front envia code + state após redirect do Mercado Livre. */
   @Post('ml/complete')
   completeMercadoLivre(@Body() dto: MercadoLivreCompleteDto) {
     return this.authService.completeMercadoLivreOAuth(
