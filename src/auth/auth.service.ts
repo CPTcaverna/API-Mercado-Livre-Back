@@ -6,8 +6,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { MercadoLibreOAuthService } from './mercadolibre-oauth.service';
-import { MercadoLibreTokenService } from './mercadolibre-token.service';
+import { MercadoLivreOAuthService } from './mercadolivre-oauth.service';
+import { MercadoLivreTokenService } from './mercadolivre-token.service';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
 
@@ -41,8 +41,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly mercadoLibreOAuth: MercadoLibreOAuthService,
-    private readonly mercadoLibreToken: MercadoLibreTokenService,
+    private readonly mercadoLivreOAuth: MercadoLivreOAuthService,
+    private readonly mercadoLivreToken: MercadoLivreTokenService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -85,14 +85,14 @@ export class AuthService {
     };
   }
 
-  signMercadoLibreOAuthState(userId: string): string {
+  signMercadoLivreOAuthState(userId: string): string {
     return this.jwt.sign(
       { sub: userId, [ML_OAUTH_STATE_PROP]: true },
       { expiresIn: '15m' },
     );
   }
 
-  verifyMercadoLibreOAuthState(state: string): string {
+  verifyMercadoLivreOAuthState(state: string): string {
     let payload: { sub?: string; ml_oauth?: boolean };
     try {
       payload = this.jwt.verify<{ sub?: string; ml_oauth?: boolean }>(state);
@@ -105,19 +105,19 @@ export class AuthService {
     return payload.sub;
   }
 
-  authorizationUrlMercadoLibre(userId: string): { authorizationUrl: string } {
-    const state = this.signMercadoLibreOAuthState(userId);
+  authorizationUrlMercadoLivre(userId: string): { authorizationUrl: string } {
+    const state = this.signMercadoLivreOAuthState(userId);
     return {
       authorizationUrl:
-        this.mercadoLibreOAuth.buildAuthorizationUrl(state),
+        this.mercadoLivreOAuth.buildAuthorizationUrl(state),
     };
   }
 
-  async completeMercadoLibreOAuth(code: string, state: string) {
-    const userId = this.verifyMercadoLibreOAuthState(state);
-    const tokens = await this.mercadoLibreOAuth.exchangeCodeForTokens(code);
-    await this.mercadoLibreToken.persistTokensForUser(userId, tokens);
-    const me = await this.mercadoLibreOAuth.getMe(tokens.access_token);
+  async completeMercadoLivreOAuth(code: string, state: string) {
+    const userId = this.verifyMercadoLivreOAuthState(state);
+    const tokens = await this.mercadoLivreOAuth.exchangeCodeForTokens(code);
+    await this.mercadoLivreToken.persistTokensForUser(userId, tokens);
+    const me = await this.mercadoLivreOAuth.getMe(tokens.access_token);
     await this.prisma.user.update({
       where: { id: userId },
       data: { mlUserId: String(me.id) },

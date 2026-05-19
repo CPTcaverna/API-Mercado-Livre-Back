@@ -1,22 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ItemsService } from '../items/items.service';
-import { MercadoLibreApiService } from '../items/mercadolibre-api.service';
-import { MercadoLibreTokenService } from '../auth/mercadolibre-token.service';
+import { MercadoLivreApiService } from '../items/mercadolivre-api.service';
+import { MercadoLivreTokenService } from '../auth/mercadolivre-token.service';
 import { PrismaService } from '../prisma/prisma.service';
-import type { MercadoLibreNotificationDto } from './dto/mercadolibre-notification.dto';
+import type { MercadoLivreNotificationDto } from './dto/mercadolivre-notification.dto';
 
 @Injectable()
-export class MercadoLibreWebhookService {
-  private readonly logger = new Logger(MercadoLibreWebhookService.name);
+export class MercadoLivreWebhookService {
+  private readonly logger = new Logger(MercadoLivreWebhookService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly itemsService: ItemsService,
-    private readonly mlApi: MercadoLibreApiService,
-    private readonly mlToken: MercadoLibreTokenService,
+    private readonly mlApi: MercadoLivreApiService,
+    private readonly mlToken: MercadoLivreTokenService,
   ) {}
 
-  enqueueProcess(notification: MercadoLibreNotificationDto): void {
+  enqueueProcess(notification: MercadoLivreNotificationDto): void {
     setImmediate(() => {
       void this.process(notification).catch((err) => {
         this.logger.error(
@@ -26,7 +26,7 @@ export class MercadoLibreWebhookService {
     });
   }
 
-  private async process(notification: MercadoLibreNotificationDto) {
+  private async process(notification: MercadoLivreNotificationDto) {
     const topic = notification.topic?.trim();
     const mlUserId = notification.user_id;
     const resource = notification.resource?.trim();

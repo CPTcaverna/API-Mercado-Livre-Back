@@ -10,7 +10,7 @@ const TOKEN_URL = 'https://api.mercadolibre.com/oauth/token';
 
 const DEFAULT_EXPIRES_IN_SEC = 6 * 60 * 60;
 
-export interface MercadoLibreTokenBundle {
+export interface MercadoLivreTokenBundle {
   access_token: string;
   refresh_token: string;
   expires_in: number;
@@ -18,7 +18,7 @@ export interface MercadoLibreTokenBundle {
 }
 
 @Injectable()
-export class MercadoLibreOAuthService {
+export class MercadoLivreOAuthService {
   private get clientId(): string {
     const v = process.env.ML_CLIENT_ID;
     if (!v?.trim()) {
@@ -65,7 +65,7 @@ export class MercadoLibreOAuthService {
     return `${base}${sep}${params.toString()}`;
   }
 
-  async exchangeCodeForTokens(code: string): Promise<MercadoLibreTokenBundle> {
+  async exchangeCodeForTokens(code: string): Promise<MercadoLivreTokenBundle> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: this.clientId,
@@ -111,7 +111,7 @@ export class MercadoLibreOAuthService {
     return { id: parsed.id };
   }
 
-  async refreshTokens(refreshToken: string): Promise<MercadoLibreTokenBundle> {
+  async refreshTokens(refreshToken: string): Promise<MercadoLivreTokenBundle> {
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       client_id: this.clientId,
@@ -124,7 +124,7 @@ export class MercadoLibreOAuthService {
   private async requestTokens(
     body: URLSearchParams,
     actionLabel: string,
-  ): Promise<MercadoLibreTokenBundle> {
+  ): Promise<MercadoLivreTokenBundle> {
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -163,7 +163,7 @@ export class MercadoLibreOAuthService {
     return this.parseTokenResponse(data);
   }
 
-  private parseTokenResponse(data: unknown): MercadoLibreTokenBundle {
+  private parseTokenResponse(data: unknown): MercadoLivreTokenBundle {
     const parsed = data as Partial<{
       access_token: string;
       refresh_token: string;

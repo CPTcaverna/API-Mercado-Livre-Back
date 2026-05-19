@@ -14,7 +14,7 @@ import type { CookieOptions, Request, Response } from 'express';
 import { JWT_COOKIE_NAME } from './auth.constants';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { MercadoLibreCompleteDto } from './dto/mercadolibre-complete.dto';
+import { MercadoLivreCompleteDto } from './dto/mercadolivre-complete.dto';
 import { RegisterDto } from './dto/register.dto';
 
 type AuthedUser = { userId: string; email?: string };
@@ -68,16 +68,16 @@ export class AuthController {
    */
   @UseGuards(AuthGuard('jwt'))
   @Get('ml/connect')
-  connectMercadoLibre(@Req() req: Request & { user: AuthedUser }) {
-    return this.authService.authorizationUrlMercadoLibre(req.user.userId);
+  connectMercadoLivre(@Req() req: Request & { user: AuthedUser }) {
+    return this.authService.authorizationUrlMercadoLivre(req.user.userId);
   }
 
   /**
    * SPA lê ?code=&state= do ML e chama esta rota para gravar tokens no MongoDB.
    */
   @Post('ml/complete')
-  completeMercadoLibreFromFront(@Body() dto: MercadoLibreCompleteDto) {
-    return this.authService.completeMercadoLibreOAuth(
+  completeMercadoLivreFromFront(@Body() dto: MercadoLivreCompleteDto) {
+    return this.authService.completeMercadoLivreOAuth(
       dto.code.trim(),
       dto.state.trim(),
     );
@@ -85,7 +85,7 @@ export class AuthController {
 
   /** Legado: callback direto na API (prefira front + POST /auth/ml/complete). */
   @Get('ml/callback')
-  async mercadoLibreCallback(
+  async mercadoLivreCallback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
@@ -107,6 +107,6 @@ export class AuthController {
         'Parâmetro code ausente. O Mercado Livre deve enviar ?code= após autorizar.',
       );
     }
-    return this.authService.completeMercadoLibreOAuth(code, state.trim());
+    return this.authService.completeMercadoLivreOAuth(code, state.trim());
   }
 }

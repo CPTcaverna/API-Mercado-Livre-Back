@@ -4,21 +4,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MercadoLibreTokenService } from '../auth/mercadolibre-token.service';
+import { MercadoLivreTokenService } from '../auth/mercadolivre-token.service';
 import type { CreateItemDto } from './dto/create-item.dto';
 import type { UpdateItemDto } from './dto/update-item.dto';
 import {
-  MercadoLibreApiService,
-  type MercadoLibreItemSnapshot,
-  type MercadoLibreUpdateItemPayload,
-} from './mercadolibre-api.service';
+  MercadoLivreApiService,
+  type MercadoLivreItemSnapshot,
+  type MercadoLivreUpdateItemPayload,
+} from './mercadolivre-api.service';
 
 @Injectable()
 export class ItemsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mlToken: MercadoLibreTokenService,
-    private readonly mlApi: MercadoLibreApiService,
+    private readonly mlToken: MercadoLivreTokenService,
+    private readonly mlApi: MercadoLivreApiService,
   ) {}
 
   async create(userId: string, dto: CreateItemDto) {
@@ -107,7 +107,7 @@ export class ItemsService {
     }
 
     const accessToken = await this.mlToken.getValidMlAccessToken(userId);
-    let mlItem: MercadoLibreItemSnapshot;
+    let mlItem: MercadoLivreItemSnapshot;
 
     if (item.status === 'paused') {
       mlItem = await this.mlApi.updateItem(accessToken, item.mlItemId, {
@@ -198,8 +198,8 @@ export class ItemsService {
     }
   }
 
-  private buildUpdatePayload(dto: UpdateItemDto): MercadoLibreUpdateItemPayload {
-    const payload: MercadoLibreUpdateItemPayload = {};
+  private buildUpdatePayload(dto: UpdateItemDto): MercadoLivreUpdateItemPayload {
+    const payload: MercadoLivreUpdateItemPayload = {};
 
     if (dto.title !== undefined) payload.title = dto.title;
     if (dto.price !== undefined) payload.price = dto.price;
@@ -220,7 +220,7 @@ export class ItemsService {
     return payload;
   }
 
-  private mapMlToDb(ml: MercadoLibreItemSnapshot) {
+  private mapMlToDb(ml: MercadoLivreItemSnapshot) {
     return {
       mlItemId: ml.id,
       title: ml.title,

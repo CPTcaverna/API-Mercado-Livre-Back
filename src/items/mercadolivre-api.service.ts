@@ -7,7 +7,7 @@ import type { CreateItemDto } from './dto/create-item.dto';
 
 const ML_API_BASE = 'https://api.mercadolibre.com';
 
-export type MercadoLibreCreateItemPayload = Omit<CreateItemDto, 'attributes'> & {
+export type MercadoLivreCreateItemPayload = Omit<CreateItemDto, 'attributes'> & {
   currency_id: string;
   buying_mode: string;
   shipping: {
@@ -17,7 +17,7 @@ export type MercadoLibreCreateItemPayload = Omit<CreateItemDto, 'attributes'> & 
   attributes: { id: string; value_id?: string; value_name?: string }[];
 };
 
-export interface MercadoLibreItemSnapshot {
+export interface MercadoLivreItemSnapshot {
   id: string;
   title: string;
   category_id: string;
@@ -27,16 +27,16 @@ export interface MercadoLibreItemSnapshot {
   thumbnail?: string;
 }
 
-export interface MercadoLibreOrderSnapshot {
+export interface MercadoLivreOrderSnapshot {
   id: number;
   order_items?: Array<{
     item?: { id?: string };
   }>;
 }
 
-export type MercadoLibreItemCreated = MercadoLibreItemSnapshot;
+export type MercadoLivreItemCreated = MercadoLivreItemSnapshot;
 
-export type MercadoLibreUpdateItemPayload = Partial<{
+export type MercadoLivreUpdateItemPayload = Partial<{
   title: string;
   price: number;
   available_quantity: number;
@@ -45,7 +45,7 @@ export type MercadoLibreUpdateItemPayload = Partial<{
   status: string;
 }>;
 
-export interface MercadoLibreCategoryAttribute {
+export interface MercadoLivreCategoryAttribute {
   id: string;
   name: string;
   tags?: {
@@ -59,12 +59,12 @@ export interface MercadoLibreCategoryAttribute {
 }
 
 @Injectable()
-export class MercadoLibreApiService {
+export class MercadoLivreApiService {
   async createItem(
     accessToken: string,
-    payload: MercadoLibreCreateItemPayload,
-  ): Promise<MercadoLibreItemCreated> {
-    return this.requestJson<MercadoLibreItemCreated>(
+    payload: MercadoLivreCreateItemPayload,
+  ): Promise<MercadoLivreItemCreated> {
+    return this.requestJson<MercadoLivreItemCreated>(
       '/items',
       accessToken,
       { method: 'POST', body: JSON.stringify(payload) },
@@ -75,9 +75,9 @@ export class MercadoLibreApiService {
   async updateItem(
     accessToken: string,
     mlItemId: string,
-    payload: MercadoLibreUpdateItemPayload,
-  ): Promise<MercadoLibreItemSnapshot> {
-    return this.requestJson<MercadoLibreItemSnapshot>(
+    payload: MercadoLivreUpdateItemPayload,
+  ): Promise<MercadoLivreItemSnapshot> {
+    return this.requestJson<MercadoLivreItemSnapshot>(
       `/items/${encodeURIComponent(mlItemId)}`,
       accessToken,
       {
@@ -91,15 +91,15 @@ export class MercadoLibreApiService {
   async closeItem(
     accessToken: string,
     mlItemId: string,
-  ): Promise<MercadoLibreItemSnapshot> {
+  ): Promise<MercadoLivreItemSnapshot> {
     return this.updateItem(accessToken, mlItemId, { status: 'closed' });
   }
 
   async relistItem(
     accessToken: string,
     mlItemId: string,
-  ): Promise<MercadoLibreItemSnapshot> {
-    return this.requestJson<MercadoLibreItemSnapshot>(
+  ): Promise<MercadoLivreItemSnapshot> {
+    return this.requestJson<MercadoLivreItemSnapshot>(
       `/items/${encodeURIComponent(mlItemId)}/relist`,
       accessToken,
       { method: 'POST', body: JSON.stringify({}) },
@@ -110,8 +110,8 @@ export class MercadoLibreApiService {
   async getItem(
     accessToken: string,
     mlItemId: string,
-  ): Promise<MercadoLibreItemSnapshot> {
-    return this.requestJson<MercadoLibreItemSnapshot>(
+  ): Promise<MercadoLivreItemSnapshot> {
+    return this.requestJson<MercadoLivreItemSnapshot>(
       `/items/${encodeURIComponent(mlItemId)}`,
       accessToken,
       { method: 'GET' },
@@ -122,8 +122,8 @@ export class MercadoLibreApiService {
   async getOrder(
     accessToken: string,
     orderId: string,
-  ): Promise<MercadoLibreOrderSnapshot> {
-    return this.requestJson<MercadoLibreOrderSnapshot>(
+  ): Promise<MercadoLivreOrderSnapshot> {
+    return this.requestJson<MercadoLivreOrderSnapshot>(
       `/orders/${encodeURIComponent(orderId)}`,
       accessToken,
       { method: 'GET' },
@@ -133,8 +133,8 @@ export class MercadoLibreApiService {
 
   async getCategoryAttributes(
     categoryId: string,
-  ): Promise<{ required: MercadoLibreCategoryAttribute[]; all: MercadoLibreCategoryAttribute[] }> {
-    const all = await this.requestJson<MercadoLibreCategoryAttribute[]>(
+  ): Promise<{ required: MercadoLivreCategoryAttribute[]; all: MercadoLivreCategoryAttribute[] }> {
+    const all = await this.requestJson<MercadoLivreCategoryAttribute[]>(
       `/categories/${encodeURIComponent(categoryId)}/attributes`,
       null,
       { method: 'GET' },

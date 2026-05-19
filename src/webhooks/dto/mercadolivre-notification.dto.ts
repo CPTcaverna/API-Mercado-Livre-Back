@@ -1,6 +1,7 @@
 import { IsOptional, IsString } from 'class-validator';
 
-export class MercadoLibreNotificationDto {
+/** Payload enviado pelo Mercado Livre em POST na callback URL. */
+export class MercadoLivreNotificationDto {
   @IsOptional()
   @IsString()
   resource?: string;

@@ -1,22 +1,22 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  MercadoLibreOAuthService,
-  type MercadoLibreTokenBundle,
-} from './mercadolibre-oauth.service';
+  MercadoLivreOAuthService,
+  type MercadoLivreTokenBundle,
+} from './mercadolivre-oauth.service';
 
 const EXPIRY_BUFFER_MS = 300_000;
 
 @Injectable()
-export class MercadoLibreTokenService {
+export class MercadoLivreTokenService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mercadoLibreOAuth: MercadoLibreOAuthService,
+    private readonly mercadoLivreOAuth: MercadoLivreOAuthService,
   ) {}
 
   async persistTokensForUser(
     userId: string,
-    tokens: MercadoLibreTokenBundle,
+    tokens: MercadoLivreTokenBundle,
   ): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
@@ -49,7 +49,7 @@ export class MercadoLibreTokenService {
     }
 
     try {
-      const tokens = await this.mercadoLibreOAuth.refreshTokens(
+      const tokens = await this.mercadoLivreOAuth.refreshTokens(
         user.mlRefreshToken,
       );
       await this.persistTokensForUser(userId, tokens);

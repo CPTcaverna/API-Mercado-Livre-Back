@@ -4,8 +4,8 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
-import { MercadoLibreOAuthService } from './mercadolibre-oauth.service';
-import { MercadoLibreTokenService } from './mercadolibre-token.service';
+import { MercadoLivreOAuthService } from './mercadolivre-oauth.service';
+import { MercadoLivreTokenService } from './mercadolivre-token.service';
 
 @Module({
   imports: [
@@ -18,10 +18,10 @@ import { MercadoLibreTokenService } from './mercadolibre-token.service';
   controllers: [AuthController],
   providers: [
     AuthService,
-    MercadoLibreOAuthService,
-    MercadoLibreTokenService,
+    MercadoLivreOAuthService,
+    MercadoLivreTokenService,
     JwtStrategy,
   ],
-  exports: [MercadoLibreTokenService],
+  exports: [MercadoLivreTokenService],
 })
 export class AuthModule {}
