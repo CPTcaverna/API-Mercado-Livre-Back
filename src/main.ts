@@ -21,12 +21,12 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  new ValidationPipe({
+    whitelist: false,
+    forbidNonWhitelisted: false,
+    transform: true,
+  }),
+);
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

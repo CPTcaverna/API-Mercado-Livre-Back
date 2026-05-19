@@ -7,6 +7,7 @@ export class MercadoLivreWebhookController {
   @Post()
   @HttpCode(200)
   receive(@Body() body: any) {
+    console.log('CHEGOU');
     console.log(body);
 
     return { ok: true };
