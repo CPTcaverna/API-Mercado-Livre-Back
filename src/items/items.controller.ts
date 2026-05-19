@@ -45,12 +45,18 @@ export class ItemsController {
   @Get()
   findAll(
     @Req() req: Request & { user: AuthedUser },
-    @Query('includeInactive') includeInactive?: string,
     @Query('q') q?: string,
+    @Query('visibility') visibility?: string,
+    @Query('status') status?: string,
+    @Query('stock') stock?: string,
+    @Query('sort') sort?: string,
   ) {
     return this.itemsService.findAllByUser(req.user.userId, {
-      includeInactive: includeInactive === 'true',
       q,
+      visibility: visibility as 'all' | 'active' | 'inactive' | undefined,
+      status,
+      stock: stock as 'all' | 'in' | 'out' | undefined,
+      sort,
     });
   }
 

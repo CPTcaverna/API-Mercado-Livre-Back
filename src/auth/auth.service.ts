@@ -93,9 +93,12 @@ export class AuthService {
   }
 
   verifyMercadoLivreOAuthState(state: string): string {
-    let payload: { sub?: string; ml_oauth?: boolean };
+    let payload: { sub?: string; [ML_OAUTH_STATE_PROP]?: boolean };
     try {
-      payload = this.jwt.verify<{ sub?: string; ml_oauth?: boolean }>(state);
+      payload = this.jwt.verify<{
+        sub?: string;
+        [ML_OAUTH_STATE_PROP]?: boolean;
+      }>(state);
     } catch {
       throw new UnauthorizedException('Parâmetro state inválido ou expirado.');
     }

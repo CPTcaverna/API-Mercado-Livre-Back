@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   MercadoLivreOAuthService,
@@ -54,12 +58,27 @@ export class MercadoLivreTokenService {
       );
       await this.persistTokensForUser(userId, tokens);
       return tokens.access_token;
-    } catch {
-      await this.clearMlTokens(userId);
-      throw new UnauthorizedException(
-        'Sessão do Mercado Livre expirada. Conecte a conta novamente.',
-      );
+    } catch (err) {
+      if (this.isMlAuthFailure(err)) {
+        await this.clearMlTokens(userId);
+        throw new UnauthorizedException(
+          'Sessão do Mercado Livre expirada. Conecte a conta novamente.',
+        );
+      }
+      throw err;
     }
+  }
+
+  private isMlAuthFailure(err: unknown): boolean {
+    if (!(err instanceof HttpException)) {
+      return false;
+    }
+    const status = err.getStatus();
+    return (
+      status === 400 ||
+      status === 401 ||
+      status === 403
+    );
   }
 
   private isAccessTokenStillValid(expiresAt: Date | null): boolean {

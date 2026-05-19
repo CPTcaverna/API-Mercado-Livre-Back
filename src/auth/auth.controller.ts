@@ -1,10 +1,8 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   Post,
-  Query,
   Req,
   Res,
   UseGuards,
@@ -29,7 +27,6 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  /** JWT vai para cookie HttpOnly (`access_token`). Front cross-origin: `credentials: 'include'`. */
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -52,51 +49,19 @@ export class AuthController {
     return { ok: true };
   }
 
-  /**
-   * Usuário logado no SPA: retorna URL de autorização do ML.
-   * ML_REDIRECT_URI deve apontar para o front (ex.: /auth/ml/callback no Vite).
-   */
+  /** Retorna URL de autorização OAuth (redirect no front: ML_REDIRECT_URI). */
   @UseGuards(AuthGuard('jwt'))
   @Get('ml/connect')
   connectMercadoLivre(@Req() req: Request & { user: AuthedUser }) {
     return this.authService.authorizationUrlMercadoLivre(req.user.userId);
   }
 
-  /**
-   * SPA lê ?code=&state= do ML e chama esta rota para gravar tokens no MongoDB.
-   */
+  /** Front envia code + state após redirect do Mercado Livre. */
   @Post('ml/complete')
-  completeMercadoLivreFromFront(@Body() dto: MercadoLivreCompleteDto) {
+  completeMercadoLivre(@Body() dto: MercadoLivreCompleteDto) {
     return this.authService.completeMercadoLivreOAuth(
       dto.code.trim(),
       dto.state.trim(),
     );
-  }
-
-  /** Legado: callback direto na API (prefira front + POST /auth/ml/complete). */
-  @Get('ml/callback')
-  async mercadoLivreCallback(
-    @Query('code') code: string | undefined,
-    @Query('state') state: string | undefined,
-    @Query('error') error: string | undefined,
-    @Query('error_description') errorDescription: string | undefined,
-  ) {
-    if (error) {
-      throw new BadRequestException(
-        errorDescription?.trim() ||
-          `Autorização recusada ou cancelada (${error}).`,
-      );
-    }
-    if (!state?.trim()) {
-      throw new BadRequestException(
-        'Parâmetro state ausente. Inicie a conexão pelo painel (GET /auth/ml/connect).',
-      );
-    }
-    if (!code?.trim()) {
-      throw new BadRequestException(
-        'Parâmetro code ausente. O Mercado Livre deve enviar ?code= após autorizar.',
-      );
-    }
-    return this.authService.completeMercadoLivreOAuth(code, state.trim());
   }
 }

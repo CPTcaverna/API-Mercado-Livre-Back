@@ -1,8 +1,9 @@
+import { Injectable } from '@nestjs/common';
 import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+  mercadoLivreFetch,
+  parseMercadoLivreJson,
+  throwMercadoLivreHttpError,
+} from '../common/mercadolivre-http';
 import type { CreateItemDto } from './dto/create-item.dto';
 
 const ML_API_BASE = 'https://api.mercadolibre.com';
@@ -202,53 +203,19 @@ export class MercadoLivreApiService {
       headers['Content-Type'] = 'application/json';
     }
 
-    const res = await fetch(`${ML_API_BASE}${path}`, {
-      ...init,
-      headers,
-    });
+    const res = await mercadoLivreFetch(
+      `${ML_API_BASE}${path}`,
+      { ...init, headers },
+      actionLabel,
+    );
 
     const raw = await res.text();
-    let data: unknown;
-    try {
-      data = raw ? JSON.parse(raw) : {};
-    } catch {
-      throw new InternalServerErrorException(
-        `Resposta inválida ao ${actionLabel} no Mercado Livre.`,
-      );
-    }
+    const data = parseMercadoLivreJson(raw, actionLabel);
 
     if (!res.ok) {
-      throw new BadRequestException(this.extractMlErrorMessage(data, actionLabel));
+      throwMercadoLivreHttpError(res.status, data, actionLabel);
     }
 
     return data as T;
-  }
-
-  private extractMlErrorMessage(data: unknown, actionLabel: string): string {
-    if (typeof data !== 'object' || data === null) {
-      return `Falha ao ${actionLabel} no Mercado Livre.`;
-    }
-
-    const record = data as Record<string, unknown>;
-    const causes = record.cause;
-    if (Array.isArray(causes) && causes.length > 0) {
-      const parts = causes
-        .map((c) => {
-          if (typeof c !== 'object' || c === null) return null;
-          const row = c as Record<string, unknown>;
-          return typeof row.message === 'string' ? row.message : null;
-        })
-        .filter((m): m is string => Boolean(m));
-      if (parts.length > 0) return parts.join(' ');
-    }
-
-    if (typeof record.message === 'string' && record.message.trim()) {
-      return record.message;
-    }
-    if (typeof record.error === 'string' && record.error.trim()) {
-      return record.error;
-    }
-
-    return `Falha ao ${actionLabel} no Mercado Livre.`;
   }
 }

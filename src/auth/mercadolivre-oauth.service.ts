@@ -3,10 +3,17 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import {
+  extractMercadoLivreErrorMessage,
+  mercadoLivreFetch,
+  parseMercadoLivreJson,
+  throwMercadoLivreHttpError,
+} from '../common/mercadolivre-http';
 
 const DEFAULT_AUTH_URL =
   'https://auth.mercadolivre.com.br/authorization';
 const TOKEN_URL = 'https://api.mercadolibre.com/oauth/token';
+const ML_API_BASE = 'https://api.mercadolibre.com';
 
 const DEFAULT_EXPIRES_IN_SEC = 6 * 60 * 60;
 
@@ -77,28 +84,23 @@ export class MercadoLivreOAuthService {
   }
 
   async getMe(accessToken: string): Promise<{ id: number }> {
-    const res = await fetch('https://api.mercadolibre.com/users/me', {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken.trim()}`,
-        Accept: 'application/json',
+    const res = await mercadoLivreFetch(
+      `${ML_API_BASE}/users/me`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken.trim()}`,
+          Accept: 'application/json',
+        },
       },
-    });
+      'buscar dados do usuário',
+    );
 
     const raw = await res.text();
-    let data: unknown;
-    try {
-      data = raw ? JSON.parse(raw) : {};
-    } catch {
-      throw new InternalServerErrorException(
-        'Resposta inválida ao buscar dados do usuário.',
-      );
-    }
+    const data = parseMercadoLivreJson(raw, 'buscar dados do usuário');
 
     if (!res.ok) {
-      throw new BadRequestException(
-        `Falha ao buscar dados do usuário (${res.status}).`,
-      );
+      throwMercadoLivreHttpError(res.status, data, 'buscar dados do usuário');
     }
 
     const parsed = data as Partial<{ id: number }>;
@@ -125,39 +127,32 @@ export class MercadoLivreOAuthService {
     body: URLSearchParams,
     actionLabel: string,
   ): Promise<MercadoLivreTokenBundle> {
-    const res = await fetch(TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
+    const res = await mercadoLivreFetch(
+      TOKEN_URL,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: body.toString(),
       },
-      body: body.toString(),
-    });
+      actionLabel,
+    );
 
     const raw = await res.text();
-    let data: unknown;
-    try {
-      data = raw ? JSON.parse(raw) : {};
-    } catch {
-      throw new InternalServerErrorException(
-        `Resposta inválida ao ${actionLabel}.`,
-      );
-    }
+    const data = parseMercadoLivreJson(raw, actionLabel);
 
     if (!res.ok) {
-      const message =
-        typeof data === 'object' &&
-        data !== null &&
-        'message' in data &&
-        typeof (data as { message: unknown }).message === 'string'
-          ? (data as { message: string }).message
-          : typeof data === 'object' &&
-              data !== null &&
-              'error' in data &&
-              typeof (data as { error: unknown }).error === 'string'
-            ? (data as { error: string }).error
-            : `Falha ao ${actionLabel} (${res.status})`;
-      throw new BadRequestException(message);
+      if (res.status === 400 || res.status === 401) {
+        throw new BadRequestException(
+          extractMercadoLivreErrorMessage(
+            data,
+            `${actionLabel}. Verifique se a conta ainda está conectada`,
+          ),
+        );
+      }
+      throwMercadoLivreHttpError(res.status, data, actionLabel);
     }
 
     return this.parseTokenResponse(data);

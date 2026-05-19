@@ -173,15 +173,36 @@ export class ItemsService {
 
   async findAllByUser(
     userId: string,
-    options: { includeInactive?: boolean; q?: string } = {},
+    options: {
+      q?: string;
+      visibility?: 'all' | 'active' | 'inactive';
+      status?: string;
+      stock?: 'all' | 'in' | 'out';
+      sort?: string;
+    } = {},
   ) {
-    const { includeInactive = false, q } = options;
-    const term = q?.trim();
+    const term = options.q?.trim();
+    const visibility = options.visibility ?? 'active';
+
+    const statusFilter = options.status?.trim();
+    const stock = options.stock ?? 'all';
 
     const items = await this.prisma.item.findMany({
       where: {
         userId,
-        ...(includeInactive ? {} : { active: true }),
+        ...(visibility === 'active'
+          ? { active: true }
+          : visibility === 'inactive'
+            ? { active: false }
+            : {}),
+        ...(statusFilter && statusFilter !== 'all'
+          ? { status: statusFilter }
+          : {}),
+        ...(stock === 'in'
+          ? { availableQty: { gt: 0 } }
+          : stock === 'out'
+            ? { availableQty: 0 }
+            : {}),
         ...(term
           ? {
               OR: [
@@ -191,9 +212,27 @@ export class ItemsService {
             }
           : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: this.resolveItemOrderBy(options.sort),
     });
     return { items };
+  }
+
+  private resolveItemOrderBy(sort?: string) {
+    switch (sort) {
+      case 'oldest':
+        return { createdAt: 'asc' as const };
+      case 'price_asc':
+        return { price: 'asc' as const };
+      case 'price_desc':
+        return { price: 'desc' as const };
+      case 'title_asc':
+        return { title: 'asc' as const };
+      case 'title_desc':
+        return { title: 'desc' as const };
+      case 'newest':
+      default:
+        return { createdAt: 'desc' as const };
+    }
   }
 
   async findOneForUser(userId: string, id: string) {
