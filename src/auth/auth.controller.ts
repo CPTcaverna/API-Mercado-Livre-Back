@@ -10,27 +10,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { JWT_COOKIE_NAME } from './auth.constants';
+import { jwtCookieClearOptions, jwtCookieOptions } from './jwt-cookie.options';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { MercadoLivreCompleteDto } from './dto/mercadolivre-complete.dto';
 import { RegisterDto } from './dto/register.dto';
 
 type AuthedUser = { userId: string; email?: string };
-
-function jwtCookieOptions(): CookieOptions {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const maxAgeMs = 7 * 24 * 60 * 60 * 1000;
-
-  return {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: maxAgeMs,
-    path: '/',
-  };
-}
 
 @Controller('auth')
 export class AuthController {
@@ -60,7 +48,7 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(JWT_COOKIE_NAME, { path: '/' });
+    res.clearCookie(JWT_COOKIE_NAME, jwtCookieClearOptions());
     return { ok: true };
   }
 
