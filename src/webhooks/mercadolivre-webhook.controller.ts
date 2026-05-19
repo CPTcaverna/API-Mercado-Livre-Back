@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { MercadoLivreNotificationDto } from './dto/mercadolivre-notification.dto';
 import { MercadoLivreWebhookService } from './mercadolivre-webhook.service';
 
@@ -8,13 +8,6 @@ export class MercadoLivreWebhookController {
 
   @Post()
   @HttpCode(200)
-  @UsePipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: false,
-      transform: true,
-    }),
-  )
   receive(@Body() notification: MercadoLivreNotificationDto) {
     this.webhookService.enqueueProcess(notification);
     return { ok: true };
