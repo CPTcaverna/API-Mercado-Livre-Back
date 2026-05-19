@@ -6,7 +6,10 @@ import {
 import {
   extractMercadoLivreErrorMessage,
   mercadoLivreFetch,
+  mercadoLivreRequestJson,
   parseMercadoLivreJson,
+  parseMercadoLivreJsonLenient,
+  readMercadoLivreResponseText,
   throwMercadoLivreHttpError,
 } from '../common/mercadolivre-http';
 
@@ -84,7 +87,7 @@ export class MercadoLivreOAuthService {
   }
 
   async getMe(accessToken: string): Promise<{ id: number }> {
-    const res = await mercadoLivreFetch(
+    const data = await mercadoLivreRequestJson<Partial<{ id: number }>>(
       `${ML_API_BASE}/users/me`,
       {
         method: 'GET',
@@ -96,14 +99,7 @@ export class MercadoLivreOAuthService {
       'buscar dados do usuário',
     );
 
-    const raw = await res.text();
-    const data = parseMercadoLivreJson(raw, 'buscar dados do usuário');
-
-    if (!res.ok) {
-      throwMercadoLivreHttpError(res.status, data, 'buscar dados do usuário');
-    }
-
-    const parsed = data as Partial<{ id: number }>;
+    const parsed = data;
     if (typeof parsed.id !== 'number') {
       throw new InternalServerErrorException(
         'Resposta do Mercado Livre sem id de usuário.',
@@ -140,22 +136,22 @@ export class MercadoLivreOAuthService {
       actionLabel,
     );
 
-    const raw = await res.text();
-    const data = parseMercadoLivreJson(raw, actionLabel);
+    const raw = await readMercadoLivreResponseText(res, actionLabel);
 
     if (!res.ok) {
+      const errorBody = parseMercadoLivreJsonLenient(raw);
       if (res.status === 400 || res.status === 401) {
         throw new BadRequestException(
           extractMercadoLivreErrorMessage(
-            data,
+            errorBody,
             `${actionLabel}. Verifique se a conta ainda está conectada`,
           ),
         );
       }
-      throwMercadoLivreHttpError(res.status, data, actionLabel);
+      throwMercadoLivreHttpError(res.status, errorBody, actionLabel);
     }
 
-    return this.parseTokenResponse(data);
+    return this.parseTokenResponse(parseMercadoLivreJson(raw, actionLabel));
   }
 
   private parseTokenResponse(data: unknown): MercadoLivreTokenBundle {

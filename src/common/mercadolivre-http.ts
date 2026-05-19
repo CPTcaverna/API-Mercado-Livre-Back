@@ -18,6 +18,10 @@ export function mercadoLivreFetchInit(init?: RequestInit): RequestInit {
   };
 }
 
+/**
+ * Dispara fetch ao Mercado Livre com timeout e trata falhas de rede.
+ * Não interpreta o corpo — use {@link mercadoLivreRequestJson} na maioria dos casos.
+ */
 export async function mercadoLivreFetch(
   url: string,
   init: RequestInit | undefined,
@@ -33,12 +37,66 @@ export async function mercadoLivreFetch(
   }
 }
 
+/**
+ * Fetch + leitura segura do corpo + validação de `res.ok` antes de interpretar JSON.
+ */
+export async function mercadoLivreRequestJson<T>(
+  url: string,
+  init: RequestInit | undefined,
+  actionLabel: string,
+): Promise<T> {
+  const res = await mercadoLivreFetch(url, init, actionLabel);
+  const raw = await readMercadoLivreResponseText(res, actionLabel);
+
+  if (!res.ok) {
+    throwMercadoLivreHttpError(
+      res.status,
+      parseMercadoLivreJsonLenient(raw),
+      actionLabel,
+    );
+  }
+
+  return parseMercadoLivreJson(raw, actionLabel) as T;
+}
+
+/** Lê o corpo da resposta; falhas de leitura viram erro de gateway. */
+export async function readMercadoLivreResponseText(
+  res: Response,
+  actionLabel: string,
+): Promise<string> {
+  try {
+    return await res.text();
+  } catch (err) {
+    throwMercadoLivreNetworkError(actionLabel, err);
+  }
+}
+
+/** Corpo de erro: vazio ou JSON inválido não quebram o fluxo. */
+export function parseMercadoLivreJsonLenient(raw: string): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return {};
+  }
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return {};
+  }
+}
+
+/** Corpo de sucesso: exige JSON válido. */
 export function parseMercadoLivreJson(
   raw: string,
   actionLabel: string,
 ): unknown {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new InternalServerErrorException(
+      `Resposta vazia ao ${actionLabel} no Mercado Livre.`,
+    );
+  }
   try {
-    return raw ? JSON.parse(raw) : {};
+    return JSON.parse(trimmed) as unknown;
   } catch {
     throw new InternalServerErrorException(
       `Resposta inválida ao ${actionLabel} no Mercado Livre.`,

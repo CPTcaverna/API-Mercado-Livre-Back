@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  mercadoLivreFetch,
-  parseMercadoLivreJson,
-  throwMercadoLivreHttpError,
-} from '../common/mercadolivre-http';
+import { mercadoLivreRequestJson } from '../common/mercadolivre-http';
 import type { CreateItemDto } from './dto/create-item.dto';
 
 const ML_API_BASE = 'https://api.mercadolibre.com';
@@ -187,7 +183,7 @@ export class MercadoLivreApiService {
     return { required, all };
   }
 
-  private async requestJson<T>(
+  private requestJson<T>(
     path: string,
     accessToken: string | null,
     init: RequestInit,
@@ -203,19 +199,10 @@ export class MercadoLivreApiService {
       headers['Content-Type'] = 'application/json';
     }
 
-    const res = await mercadoLivreFetch(
+    return mercadoLivreRequestJson<T>(
       `${ML_API_BASE}${path}`,
       { ...init, headers },
       actionLabel,
     );
-
-    const raw = await res.text();
-    const data = parseMercadoLivreJson(raw, actionLabel);
-
-    if (!res.ok) {
-      throwMercadoLivreHttpError(res.status, data, actionLabel);
-    }
-
-    return data as T;
   }
 }
