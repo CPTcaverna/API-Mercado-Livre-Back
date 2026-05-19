@@ -71,11 +71,33 @@ export interface MercadoLivreCategoryAttribute {
   tags?: {
     required?: boolean;
     catalog_required?: boolean;
+    conditional_required?: boolean;
+    catalog_listing_required?: boolean;
     hidden?: boolean;
+    read_only?: boolean;
+    used_hidden?: boolean;
   };
   value_type?: string;
   values?: { id: string; name: string }[];
   hint?: string;
+  example?: string;
+  default_unit?: string;
+  allowed_units?: { id: string; name: string }[];
+  value_max_length?: number;
+  hierarchy?: string;
+}
+
+function filterPublishRequiredAttributes(
+  all: MercadoLivreCategoryAttribute[],
+): MercadoLivreCategoryAttribute[] {
+  return all.filter((attr) => {
+    const tags = attr.tags;
+    if (tags?.hidden || tags?.read_only || tags?.used_hidden) return false;
+    if (tags?.conditional_required || tags?.catalog_listing_required) return false;
+    if (tags?.required) return true;
+    if (attr.hierarchy === 'CHILD_PK') return true;
+    return false;
+  });
 }
 
 @Injectable()
@@ -195,12 +217,25 @@ export class MercadoLivreApiService {
       'buscar atributos da categoria',
     );
 
-    const required = all.filter(
-      (attr) =>
-        attr.tags?.required === true || attr.tags?.catalog_required === true,
-    );
+    const required = filterPublishRequiredAttributes(all);
 
     return { required, all };
+  }
+
+  async getConditionalRequiredAttributes(
+    accessToken: string,
+    categoryId: string,
+    payload: Record<string, unknown>,
+  ): Promise<Array<{ id: string; name: string }>> {
+    const result = await this.requestJson<{
+      required_attributes?: Array<{ id: string; name: string }>;
+    }>(
+      `/categories/${encodeURIComponent(categoryId)}/attributes/conditional`,
+      accessToken,
+      { method: 'POST', body: JSON.stringify(payload) },
+      'validar atributos condicionais',
+    );
+    return result.required_attributes ?? [];
   }
 
   private requestJson<T>(

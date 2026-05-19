@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { CreateItemDto } from './dto/create-item.dto';
+import { ResolveCategoryAttributesDto } from './dto/resolve-category-attributes.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { ItemsService } from './items.service';
 
@@ -44,6 +45,19 @@ export class ItemsController {
   @Get('categories/:categoryId/attributes')
   getCategoryAttributes(@Param('categoryId') categoryId: string) {
     return this.itemsService.getCategoryAttributes(categoryId);
+  }
+
+  @Post('categories/:categoryId/attributes/resolve')
+  resolveCategoryAttributes(
+    @Req() req: Request & { user: AuthedUser },
+    @Param('categoryId') categoryId: string,
+    @Body() dto: ResolveCategoryAttributesDto,
+  ) {
+    return this.itemsService.resolveCategoryAttributes(
+      req.user.userId,
+      categoryId,
+      dto,
+    );
   }
 
   @Get()

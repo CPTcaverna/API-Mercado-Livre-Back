@@ -64,7 +64,6 @@ export class CreateItemDto {
   pictures: PictureDto[];
 
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => ItemAttributeDto)
   attributes: ItemAttributeDto[];

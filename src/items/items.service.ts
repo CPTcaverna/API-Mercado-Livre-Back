@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoLivreTokenService } from '../auth/mercadolivre-token.service';
 import type { CreateItemDto } from './dto/create-item.dto';
+import type { ResolveCategoryAttributesDto } from './dto/resolve-category-attributes.dto';
 import type { UpdateItemDto } from './dto/update-item.dto';
 import {
   MercadoLivreApiService,
@@ -195,6 +196,49 @@ export class ItemsService {
       throw new BadRequestException('categoryId inválido (ex.: MLB3530).');
     }
     return this.mlApi.getCategoryAttributes(categoryId);
+  }
+
+  async resolveCategoryAttributes(
+    userId: string,
+    categoryId: string,
+    dto: ResolveCategoryAttributesDto,
+  ) {
+    if (!/^ML[A-Z]\d+$/.test(categoryId)) {
+      throw new BadRequestException('categoryId inválido (ex.: MLB3530).');
+    }
+
+    const base = await this.mlApi.getCategoryAttributes(categoryId);
+    const requiredIds = new Set(base.required.map((attr) => attr.id));
+
+    try {
+      const accessToken = await this.mlToken.getValidMlAccessToken(userId);
+      const conditional = await this.mlApi.getConditionalRequiredAttributes(
+        accessToken,
+        categoryId,
+        {
+          category_id: categoryId,
+          title: dto.title?.trim() || 'Produto',
+          condition: dto.condition ?? 'new',
+          buying_mode: 'buy_it_now',
+          listing_type_id: dto.listing_type_id ?? 'gold_special',
+          currency_id: 'BRL',
+          attributes: dto.attributes.map((attr) => ({
+            id: attr.id,
+            ...(attr.value_id ? { value_id: attr.value_id } : {}),
+            ...(attr.value_name ? { value_name: attr.value_name } : {}),
+          })),
+        },
+      );
+      for (const row of conditional) {
+        requiredIds.add(row.id);
+      }
+    } catch {
+      // Mantém obrigatórios base se a validação condicional falhar.
+    }
+
+    const required = base.all.filter((attr) => requiredIds.has(attr.id));
+
+    return { required, all: base.all };
   }
 
   async findAllByUser(
