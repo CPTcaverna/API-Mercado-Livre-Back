@@ -88,6 +88,11 @@ export class ItemsService {
 
     const accessToken = await this.mlToken.getValidMlAccessToken(userId);
     const mlItem = await this.mlApi.closeItem(accessToken, item.mlItemId);
+    if (mlItem.status !== 'closed') {
+      throw new BadRequestException(
+        'Não foi possível inativar o anúncio no Mercado Livre.',
+      );
+    }
 
     const updated = await this.prisma.item.update({
       where: { id: item.id },
@@ -98,6 +103,25 @@ export class ItemsService {
     });
 
     return { item: updated };
+  }
+
+  /**
+   * Exclui do painel somente após encerrar no Mercado Livre.
+   * Só anúncios inativos no app.
+   */
+  async removeInactive(userId: string, id: string) {
+    const item = await this.findOwnedItem(userId, id);
+    if (item.active) {
+      throw new BadRequestException(
+        'Inative o anúncio antes de excluir.',
+      );
+    }
+
+    const accessToken = await this.mlToken.getValidMlAccessToken(userId);
+    await this.ensureItemClosedOnMl(accessToken, item.mlItemId);
+
+    await this.prisma.item.delete({ where: { id: item.id } });
+    return { ok: true };
   }
 
   async reactivate(userId: string, id: string) {
@@ -114,7 +138,19 @@ export class ItemsService {
         status: 'active',
       });
     } else {
-      mlItem = await this.mlApi.relistItem(accessToken, item.mlItemId);
+      // Inativar usa status closed — republicar exige POST /relist com preço, estoque e tipo.
+      const snapshot = await this.mlApi.getItem(accessToken, item.mlItemId);
+      mlItem = await this.mlApi.relistItem(accessToken, item.mlItemId, {
+        price: item.price,
+        quantity: item.availableQty,
+        listing_type_id: snapshot.listing_type_id?.trim() || 'silver',
+      });
+    }
+
+    if (mlItem.status === 'closed') {
+      throw new BadRequestException(
+        'Não foi possível reativar o anúncio no Mercado Livre.',
+      );
     }
 
     const updated = await this.prisma.item.update({
@@ -135,11 +171,25 @@ export class ItemsService {
     return this.mlApi.getCategoryAttributes(categoryId);
   }
 
-  async findAllByUser(userId: string, includeInactive = false) {
+  async findAllByUser(
+    userId: string,
+    options: { includeInactive?: boolean; q?: string } = {},
+  ) {
+    const { includeInactive = false, q } = options;
+    const term = q?.trim();
+
     const items = await this.prisma.item.findMany({
       where: {
         userId,
         ...(includeInactive ? {} : { active: true }),
+        ...(term
+          ? {
+              OR: [
+                { title: { contains: term, mode: 'insensitive' } },
+                { mlItemId: { contains: term, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -151,21 +201,99 @@ export class ItemsService {
     return { item };
   }
 
-  async syncFromMercadoLivre(userId: string, mlItemId: string) {
+  /**
+   * Importa todos os anúncios do vendedor no ML (upsert por mlItemId — sem duplicar).
+   */
+  async importAllFromMercadoLivre(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { mlUserId: true },
+    });
+    if (!user?.mlUserId?.trim()) {
+      throw new BadRequestException(
+        'Conta Mercado Livre não conectada. Conecte antes de importar.',
+      );
+    }
+
     const accessToken = await this.mlToken.getValidMlAccessToken(userId);
-    const mlItem = await this.mlApi.getItem(accessToken, mlItemId);
+    const mlUserId = user.mlUserId.trim();
+    const limit = 50;
+    let offset = 0;
+    let totalOnMl = 0;
+
+    const summary = {
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
+
+    do {
+      const page = await this.mlApi.searchUserItemIds(accessToken, mlUserId, {
+        offset,
+        limit,
+      });
+      totalOnMl = page.paging?.total ?? page.results.length;
+
+      for (const mlItemId of page.results) {
+        try {
+          const result = await this.syncFromMercadoLivre(userId, mlItemId);
+          if (result.action === 'created') summary.created += 1;
+          else if (result.action === 'updated') summary.updated += 1;
+          else summary.skipped += 1;
+        } catch (err) {
+          summary.failed += 1;
+          if (summary.errors.length < 10) {
+            const msg =
+              err instanceof Error ? err.message : 'Erro desconhecido';
+            summary.errors.push(`${mlItemId}: ${msg}`);
+          }
+        }
+      }
+
+      offset += page.results.length;
+      if (page.results.length === 0) break;
+    } while (offset < totalOnMl);
+
+    return {
+      ...summary,
+      totalOnMercadoLivre: totalOnMl,
+      processed: summary.created + summary.updated + summary.skipped + summary.failed,
+    };
+  }
+
+  async syncFromMercadoLivre(userId: string, mlItemId: string) {
+    const normalizedId = mlItemId.trim().toUpperCase();
+    const existing = await this.prisma.item.findUnique({
+      where: { mlItemId: normalizedId },
+    });
+
+    if (existing && existing.userId !== userId) {
+      return {
+        item: existing,
+        action: 'skipped' as const,
+        reason: 'owned_by_other_user' as const,
+      };
+    }
+
+    const accessToken = await this.mlToken.getValidMlAccessToken(userId);
+    const mlItem = await this.mlApi.getItem(accessToken, normalizedId);
     const data = {
       ...this.mapMlToDb(mlItem),
       active: mlItem.status !== 'closed',
     };
 
     const item = await this.prisma.item.upsert({
-      where: { mlItemId },
+      where: { mlItemId: normalizedId },
       create: { userId, ...data },
       update: data,
     });
 
-    return { item };
+    return {
+      item,
+      action: (existing ? 'updated' : 'created') as 'updated' | 'created',
+    };
   }
 
   async syncFromMercadoLivreByMlUserId(mlUserId: string, mlItemId: string) {
@@ -174,9 +302,16 @@ export class ItemsService {
       select: { id: true },
     });
     if (!user) {
-      return { synced: false as const, reason: 'user_not_found' };
+      return { synced: false as const, reason: 'user_not_found' as const };
     }
     const result = await this.syncFromMercadoLivre(user.id, mlItemId);
+    if (result.action === 'skipped') {
+      return {
+        synced: false as const,
+        reason: result.reason,
+        item: result.item,
+      };
+    }
     return { synced: true as const, ...result };
   }
 
@@ -194,6 +329,24 @@ export class ItemsService {
     if (!item.active) {
       throw new BadRequestException(
         'Anúncio inativo. Reative antes de atualizar.',
+      );
+    }
+  }
+
+  /** Encerra no ML; só segue se o status final for closed. */
+  private async ensureItemClosedOnMl(
+    accessToken: string,
+    mlItemId: string,
+  ): Promise<void> {
+    let mlItem = await this.mlApi.getItem(accessToken, mlItemId);
+
+    if (mlItem.status !== 'closed') {
+      mlItem = await this.mlApi.closeItem(accessToken, mlItemId);
+    }
+
+    if (mlItem.status !== 'closed') {
+      throw new BadRequestException(
+        'Não foi possível encerrar o anúncio no Mercado Livre. Exclusão cancelada.',
       );
     }
   }

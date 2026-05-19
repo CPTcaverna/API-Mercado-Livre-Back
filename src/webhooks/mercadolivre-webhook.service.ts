@@ -73,13 +73,17 @@ export class MercadoLivreWebhookService {
     );
 
     if (!result.synced) {
+      const reason =
+        'reason' in result ? String(result.reason) : 'desconhecido';
       this.logger.warn(
-        `Item ${mlItemId} não sincronizado (vendedor ML ${mlUserId} não encontrado).`,
+        `Item ${mlItemId} não sincronizado (${reason}, vendedor ML ${mlUserId}).`,
       );
       return;
     }
 
-    this.logger.log(`Item ${mlItemId} sincronizado via webhook items.`);
+    const action =
+      'action' in result && result.action === 'created' ? 'criado' : 'atualizado';
+    this.logger.log(`Item ${mlItemId} ${action} via webhook.`);
   }
 
   private async handleOrdersTopic(mlUserId: string, resource: string) {

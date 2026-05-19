@@ -23,6 +23,12 @@ type AuthedUser = { userId: string; email?: string };
 export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
+  /** Importa anúncios existentes no ML para o Mongo (sem duplicar por mlItemId). */
+  @Post('import')
+  importFromMercadoLivre(@Req() req: Request & { user: AuthedUser }) {
+    return this.itemsService.importAllFromMercadoLivre(req.user.userId);
+  }
+
   @Post()
   create(
     @Req() req: Request & { user: AuthedUser },
@@ -40,11 +46,12 @@ export class ItemsController {
   findAll(
     @Req() req: Request & { user: AuthedUser },
     @Query('includeInactive') includeInactive?: string,
+    @Query('q') q?: string,
   ) {
-    return this.itemsService.findAllByUser(
-      req.user.userId,
-      includeInactive === 'true',
-    );
+    return this.itemsService.findAllByUser(req.user.userId, {
+      includeInactive: includeInactive === 'true',
+      q,
+    });
   }
 
   @Get(':id')
@@ -70,6 +77,14 @@ export class ItemsController {
     @Param('id') id: string,
   ) {
     return this.itemsService.reactivate(req.user.userId, id);
+  }
+
+  @Delete(':id/permanent')
+  removeInactive(
+    @Req() req: Request & { user: AuthedUser },
+    @Param('id') id: string,
+  ) {
+    return this.itemsService.removeInactive(req.user.userId, id);
   }
 
   @Delete(':id')

@@ -25,6 +25,13 @@ export interface MercadoLivreItemSnapshot {
   available_quantity: number;
   status: string;
   thumbnail?: string;
+  listing_type_id?: string;
+}
+
+export interface MercadoLivreRelistPayload {
+  price: number;
+  quantity: number;
+  listing_type_id: string;
 }
 
 export interface MercadoLivreOrderSnapshot {
@@ -32,6 +39,15 @@ export interface MercadoLivreOrderSnapshot {
   order_items?: Array<{
     item?: { id?: string };
   }>;
+}
+
+export interface MercadoLivreUserItemsSearch {
+  results: string[];
+  paging: {
+    limit: number;
+    offset: number;
+    total: number;
+  };
 }
 
 export type MercadoLivreItemCreated = MercadoLivreItemSnapshot;
@@ -98,11 +114,12 @@ export class MercadoLivreApiService {
   async relistItem(
     accessToken: string,
     mlItemId: string,
+    payload: MercadoLivreRelistPayload,
   ): Promise<MercadoLivreItemSnapshot> {
     return this.requestJson<MercadoLivreItemSnapshot>(
       `/items/${encodeURIComponent(mlItemId)}/relist`,
       accessToken,
-      { method: 'POST', body: JSON.stringify({}) },
+      { method: 'POST', body: JSON.stringify(payload) },
       'reativar o anúncio',
     );
   }
@@ -116,6 +133,26 @@ export class MercadoLivreApiService {
       accessToken,
       { method: 'GET' },
       'buscar o anúncio',
+    );
+  }
+
+  async searchUserItemIds(
+    accessToken: string,
+    mlUserId: string,
+    options: { offset?: number; limit?: number } = {},
+  ): Promise<MercadoLivreUserItemsSearch> {
+    const offset = options.offset ?? 0;
+    const limit = options.limit ?? 50;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+
+    return this.requestJson<MercadoLivreUserItemsSearch>(
+      `/users/${encodeURIComponent(mlUserId)}/items/search?${params.toString()}`,
+      accessToken,
+      { method: 'GET' },
+      'listar anúncios do vendedor',
     );
   }
 
