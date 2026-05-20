@@ -257,42 +257,59 @@ export class ItemsService {
       status?: string;
       stock?: 'all' | 'in' | 'out';
       sort?: string;
+      page?: number;
+      limit?: number;
     } = {},
   ) {
     const term = options.q?.trim();
     const visibility = options.visibility ?? 'active';
-
     const statusFilter = options.status?.trim();
     const stock = options.stock ?? 'all';
+    const pageSize = Math.min(Math.max(options.limit ?? 20, 1), 100);
+    const requestedPage = Math.max(options.page ?? 1, 1);
+
+    const where = {
+      userId,
+      ...(visibility === 'active'
+        ? { active: true }
+        : visibility === 'inactive'
+          ? { active: false }
+          : {}),
+      ...(statusFilter && statusFilter !== 'all' ? { status: statusFilter } : {}),
+      ...(stock === 'in'
+        ? { availableQty: { gt: 0 } }
+        : stock === 'out'
+          ? { availableQty: 0 }
+          : {}),
+      ...(term
+        ? {
+            OR: [
+              { title: { contains: term, mode: 'insensitive' as const } },
+              { mlItemId: { contains: term, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+    };
+
+    const total = await this.prisma.item.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const skip = (page - 1) * pageSize;
 
     const items = await this.prisma.item.findMany({
-      where: {
-        userId,
-        ...(visibility === 'active'
-          ? { active: true }
-          : visibility === 'inactive'
-            ? { active: false }
-            : {}),
-        ...(statusFilter && statusFilter !== 'all'
-          ? { status: statusFilter }
-          : {}),
-        ...(stock === 'in'
-          ? { availableQty: { gt: 0 } }
-          : stock === 'out'
-            ? { availableQty: 0 }
-            : {}),
-        ...(term
-          ? {
-              OR: [
-                { title: { contains: term, mode: 'insensitive' } },
-                { mlItemId: { contains: term, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
+      where,
       orderBy: this.resolveItemOrderBy(options.sort),
+      skip,
+      take: pageSize,
     });
-    return { items };
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages,
+    };
   }
 
   private resolveItemOrderBy(sort?: string) {

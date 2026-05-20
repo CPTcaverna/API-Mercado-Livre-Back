@@ -68,13 +68,19 @@ export class ItemsController {
     @Query('status') status?: string,
     @Query('stock') stock?: string,
     @Query('sort') sort?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
+    const parsedPage = page ? Number.parseInt(page, 10) : undefined;
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
     return this.itemsService.findAllByUser(req.user.userId, {
       q,
       visibility: visibility as 'all' | 'active' | 'inactive' | undefined,
       status,
       stock: stock as 'all' | 'in' | 'out' | undefined,
       sort,
+      page: Number.isFinite(parsedPage) ? parsedPage : undefined,
+      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
     });
   }
 
