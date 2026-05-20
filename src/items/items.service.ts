@@ -314,8 +314,64 @@ export class ItemsService {
   }
 
   async findOneForUser(userId: string, id: string) {
-    const item = await this.findOwnedItem(userId, id);
-    return { item };
+    const local = await this.findOwnedItem(userId, id);
+    const base = {
+      id: local.id,
+      mlItemId: local.mlItemId,
+      title: local.title,
+      price: local.price,
+      availableQty: local.availableQty,
+      status: local.status,
+      active: local.active,
+      thumbnail: local.thumbnail,
+      categoryId: local.categoryId,
+      createdAt: local.createdAt.toISOString(),
+      updatedAt: local.updatedAt.toISOString(),
+    };
+
+    try {
+      const accessToken = await this.mlToken.getValidMlAccessToken(userId);
+      const ml = await this.mlApi.getItem(accessToken, local.mlItemId);
+
+      let categoryName: string | null = null;
+      if (ml.category_id) {
+        try {
+          const category = await this.mlApi.getCategoryInfo(ml.category_id);
+          categoryName = category.name;
+        } catch {
+          categoryName = null;
+        }
+      }
+
+      const pictures = (ml.pictures ?? [])
+        .map((pic) => pic.secure_url ?? pic.url ?? pic.source ?? '')
+        .filter((url) => url.length > 0);
+
+      const attributes = (ml.attributes ?? [])
+        .filter((attr) => attr.value_name || attr.value_id)
+        .map((attr) => ({
+          id: attr.id,
+          name: attr.name,
+          value_name: attr.value_name ?? undefined,
+          value_id: attr.value_id ?? undefined,
+        }));
+
+      return {
+        item: {
+          ...base,
+          permalink: ml.permalink ?? null,
+          condition: ml.condition ?? null,
+          listingTypeId: ml.listing_type_id ?? null,
+          currencyId: ml.currency_id ?? null,
+          categoryName,
+          soldQuantity: ml.sold_quantity ?? null,
+          pictures,
+          attributes,
+        },
+      };
+    } catch {
+      return { item: base };
+    }
   }
 
   async importAllFromMercadoLivre(userId: string) {

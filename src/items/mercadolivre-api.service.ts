@@ -25,6 +25,31 @@ export interface MercadoLivreItemSnapshot {
   listing_type_id?: string;
 }
 
+export interface MercadoLivreItemDetail extends MercadoLivreItemSnapshot {
+  currency_id?: string;
+  condition?: string;
+  permalink?: string;
+  sold_quantity?: number;
+  initial_quantity?: number;
+  pictures?: Array<{
+    id?: string;
+    url?: string;
+    secure_url?: string;
+    source?: string;
+  }>;
+  attributes?: Array<{
+    id: string;
+    name: string;
+    value_id?: string | null;
+    value_name?: string | null;
+  }>;
+}
+
+export interface MercadoLivreCategoryInfo {
+  id: string;
+  name: string;
+}
+
 export interface MercadoLivreRelistPayload {
   price: number;
   quantity: number;
@@ -153,12 +178,21 @@ export class MercadoLivreApiService {
   async getItem(
     accessToken: string,
     mlItemId: string,
-  ): Promise<MercadoLivreItemSnapshot> {
-    return this.requestJson<MercadoLivreItemSnapshot>(
+  ): Promise<MercadoLivreItemDetail> {
+    return this.requestJson<MercadoLivreItemDetail>(
       `/items/${encodeURIComponent(mlItemId)}`,
       accessToken,
       { method: 'GET' },
       'buscar o anúncio',
+    );
+  }
+
+  async getCategoryInfo(categoryId: string): Promise<MercadoLivreCategoryInfo> {
+    return this.requestJson<MercadoLivreCategoryInfo>(
+      `/categories/${encodeURIComponent(categoryId)}`,
+      null,
+      { method: 'GET' },
+      'buscar categoria',
     );
   }
 
