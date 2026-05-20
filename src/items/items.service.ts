@@ -55,6 +55,7 @@ export class ItemsService {
 
   async create(userId: string, dto: CreateItemDto) {
     const accessToken = await this.mlToken.getValidMlAccessToken(userId);
+    const pictureSource = dto.pictures[0]?.source?.trim();
 
     const mlItem = await this.mlApi.createItem(accessToken, {
       title: dto.title,
@@ -77,11 +78,13 @@ export class ItemsService {
       },
     });
 
+    const mlData = this.mapMlToDb(mlItem);
     const item = await this.prisma.item.create({
       data: {
         userId,
         active: true,
-        ...this.mapMlToDb(mlItem),
+        ...mlData,
+        thumbnail: pictureSource ?? mlData.thumbnail,
       },
     });
 
@@ -104,9 +107,14 @@ export class ItemsService {
       payload,
     );
 
+    const pictureSource = dto.pictures?.[0]?.source?.trim();
+    const mlData = this.mapMlToDb(mlItem);
     const updated = await this.prisma.item.update({
       where: { id: item.id },
-      data: this.mapMlToDb(mlItem),
+      data: {
+        ...mlData,
+        ...(pictureSource ? { thumbnail: pictureSource } : {}),
+      },
     });
 
     return { item: updated };
